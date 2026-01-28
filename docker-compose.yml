@@ -1,0 +1,91 @@
+version: '3.8'
+
+services:
+  # ---------------------------
+  # Database (PostgreSQL)
+  # ---------------------------
+  db:
+    image: postgres:15-alpine
+    restart: always
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=${DB_NAME}
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+    networks:
+      - factory_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ---------------------------
+  # MQTT Broker (Mosquitto)
+  # ---------------------------
+  broker:
+    image: eclipse-mosquitto:2
+    restart: always
+    volumes:
+      - ./mosquitto/config:/mosquitto/config
+      - mosquitto_data:/mosquitto/data
+      - mosquitto_log:/mosquitto/log
+    ports:
+      - "1883:1883"   # MQTT
+      - "9001:9001"   # WebSockets (optional)
+    networks:
+      - factory_net
+
+  # ---------------------------
+  # Backend (Django)
+  # ---------------------------
+  backend:
+    build:
+      context: ./factory-pulse-backend
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - ./factory-pulse-backend:/app  # Hot reload
+    ports:
+      - "8000:8000"
+    environment:
+      - POSTGRES_DB=${DB_NAME}
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - DB_HOST=db
+      - BROKER_HOST=broker
+      - DEBUG=1
+    depends_on:
+      db:
+        condition: service_healthy
+      broker:
+        condition: service_started
+    networks:
+      - factory_net
+
+  # ---------------------------
+  # Frontend (Vite/React)
+  # ---------------------------
+  frontend:
+    build:
+      context: ./factory-pulse-frontend
+    volumes:
+      - ./factory-pulse-frontend:/app
+      - /app/node_modules  # Prevent local node_modules from overwriting container deps
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost:8000
+    depends_on:
+      - backend
+    networks:
+      - factory_net
+
+volumes:
+  postgres_data:
+  mosquitto_data:
+  mosquitto_log:
+
+networks:
+  factory_net:
+    driver: bridge

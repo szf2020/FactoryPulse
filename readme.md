@@ -2,6 +2,7 @@
 
 ![Status](https://img.shields.io/badge/status-active-success)
 ![License](https://img.shields.io/badge/license-MIT-blue)
+![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?style=flat&logo=docker&logoColor=white)
 ![Backend](https://img.shields.io/badge/backend-Django_Rest_Framework-092E20)
 ![Frontend](https://img.shields.io/badge/frontend-React_Vite-61DAFB)
 
@@ -55,103 +56,87 @@ Enterprise-grade login interface utilizing JWT (JSON Web Tokens) for secure, sta
 
 ## System Architecture
 
-The solution implements a scalable **Event-Driven Architecture**:
+The solution implements a scalable **Event-Driven Architecture** fully orchestrated via Docker:
 
-1.  **Data Acquisition:** The Edge Firmware publishes events (Cycle Complete, Scrap Detected, Machine Error) and telemetry (Amperage) to an MQTT Broker.
+1.  **Data Acquisition:** The Edge Firmware publishes events (Cycle Complete, Scrap Detected, Machine Error) and telemetry (Amperage) to the **Mosquitto Broker** (Containerized).
 2.  **Ingestion Middleware:** A Python-based worker subscribes to `industry/+/io`. It performs edge detection on digital signals to distinguish between a valid production cycle and a false positive before writing to the database.
 3.  **Backend Core (Django):** Acts as the single source of truth. It manages the relational model between Machines, Production Events, and Sensor Readings.
-4.  **Frontend (React):** Consumes the API to provide an optimistic UI. It polls for fresh data to ensure operators see the machine state with sub-second latency.
+4.  **Database (PostgreSQL):** Robust relational storage replacing SQLite for production-grade data integrity and concurrency.
+5.  **Frontend (React):** Consumes the API via Docker networking. It polls for fresh data to ensure operators see the machine state with sub-second latency.
 
 ---
 
 ## Technical Stack
 
+### Infrastructure & DevOps
+* **Containerization:** Docker & Docker Compose (Full Stack Isolation).
+* **Database:** PostgreSQL 15 (Alpine).
+* **Message Broker:** Eclipse Mosquitto (MQTT).
+
 ### Backend
 * **Framework:** Django 6.0 & Django REST Framework (DRF).
-* **Language:** Python 3.10+.
-* **Messaging:** MQTT Protocol via Paho Client (Optimized for unstable factory networks).
+* **Runtime:** Python 3.12 (Slim Image).
+* **Messaging:** Paho MQTT Client.
 * **Authentication:** SimpleJWT (Stateless Token Authentication).
-* **Database:** SQLite (Dev) / PostgreSQL (Production).
 
 ### Frontend
 * **Core:** React.js (Vite Ecosystem).
-* **Styling:** Tailwind CSS (Utility-first framework for responsive design).
-* **State Management:** React Context API.
+* **Runtime:** Node.js 22 (Alpine).
+* **Styling:** Tailwind CSS (Utility-first framework).
 * **Visualization:** Chart.js & react-chartjs-2.
-* **Internationalization:** i18n support for English, Portuguese, and Spanish.
+* **Internationalization:** i18n support.
 
 ---
 
 ## Installation & Setup Guide
 
+The entire project is containerized. You do not need to install Python, Node, or PostgreSQL locally. You only need **Docker Desktop**.
+
 ### Prerequisites
-* Node.js (v18+)
-* Python (v3.10+)
-* Mosquitto MQTT Broker (Local or Remote)
+* [Docker Desktop](https://www.docker.com/products/docker-desktop/) installed and running.
 
-### 1. Backend Configuration
+### 1. Initial Configuration
 
-Navigate to the backend directory and set up the environment:
+Clone the repository and create the environment file:
 
 ```bash
-cd backend
-
-# Create and activate virtual environment
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Database Setup
-python manage.py migrate,
+git clone [https://github.com/petry-dev/FactoryPulse.git](https://github.com/petry-dev/FactoryPulse.git)
+cd FactoryPulse
 ```
+# Create .env file (Windows/Linux)
+# Ensure your .env contains DB_NAME, DB_USER, DB_PASSWORD settings as per docker-compose.yml
 
-### Simulation Data (Optional)
-
-If no physical hardware is connected, run the seed script to populate the database with demo machines and historical telemetry for OEE visualization:
+### 2. Start the Stack
+Run the following command to build and start the Backend, Frontend, Database, and Broker:
 
 ```bash
-
-python manage.py seed_data
-
+docker-compose up --build
 ```
+Wait until the logs show that the database is ready and the Django server is listening.
 
-### Start the Services
-
-You will need two terminal windows running simultaneously:
-
-### Terminal 1: Start the MQTT Ingestion Worker
-
+### 3. Database Setup (First Run Only)
+Open a new terminal window and execute the migrations inside the running container:
 ```bash
+# Apply database migrations to PostgreSQL
+docker-compose exec backend python manage.py migrate
 
-python manage.py run_mqtt
+# Create a Superuser for the Admin Panel
+docker-compose exec backend python manage.py createsuperuser
 
+# (Optional) Seed the database with simulation data
+docker-compose exec backend python manage.py seed_data
 ```
-### Terminal 2: Start the API Server
 
+### 4. Start MQTT Ingestion Worker
 ```bash
-
-python manage.py runserver
-
+docker-compose exec backend python manage.py run_mqtt
 ```
+## Accessing the Application
 
-### 2. Frontend Configuration
-
-Open a new terminal and navigate to the frontend directory:
-
-```bash
-
-cd frontend
-
-# Install dependencies
-npm install
-
-# Start Development Server
-npm run dev
-
-```
-Access the application at http://localhost:5173.
+- **Frontend (Dashboard):** http://localhost:5173  
+- **Backend API:** http://localhost:8000/api/  
+- **Admin Panel:** http://localhost:8000/admin/  
+- **MQTT Broker:** `localhost:1883`
 
 ## API Documentation
 
