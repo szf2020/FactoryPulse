@@ -30,6 +30,13 @@ const translations = {
     // Main System Layout
     dashboard: 'Visão Geral', machines: 'Máquinas', reports: 'Relatórios', alerts: 'Alertas', settings: 'Configurações',
     search: 'Buscar no sistema...', logout: 'Sair',
+
+    // AI Assistant Chat
+    assistant_title: 'Assistente FactoryPulse', assistant_subtitle: 'Pergunte sobre OEE e paradas das máquinas',
+    assistant_placeholder: 'Pergunte algo, ex: Qual a OEE da DB-01 hoje?',
+    assistant_welcome: 'Olá! Posso responder perguntas sobre a OEE e as paradas das suas máquinas. O que você quer saber?',
+    assistant_thinking: 'Consultando os dados da fábrica...',
+    assistant_error: 'Não consegui falar com o assistente agora. Tente novamente em instantes.',
     machine_list: 'Parque Fabril', machine_desc: 'Monitoramento em tempo real das linhas de produção.',
     energy: 'Energia', availability: 'Disponibilidade', performance: 'Performance', quality: 'Qualidade',
     id: 'ID', unit_energy: 'Corrente (A)',
@@ -77,6 +84,13 @@ const translations = {
     // Main System Layout
     dashboard: 'Overview', machines: 'Machines', reports: 'Reports', alerts: 'Alerts', settings: 'Settings',
     search: 'Search system...', logout: 'Logout',
+
+    // AI Assistant Chat
+    assistant_title: 'FactoryPulse Assistant', assistant_subtitle: 'Ask about machine OEE and downtime',
+    assistant_placeholder: 'Ask something, e.g. What is DB-01 OEE today?',
+    assistant_welcome: "Hi! I can answer questions about your machines' OEE and downtime. What would you like to know?",
+    assistant_thinking: 'Looking up the shop floor data...',
+    assistant_error: "Couldn't reach the assistant right now. Please try again shortly.",
     machine_list: 'Factory Floor', machine_desc: 'Real-time monitoring of production lines.',
     energy: 'Energy', availability: 'Availability', performance: 'Performance', quality: 'Quality',
     id: 'ID', unit_energy: 'Current (A)',
@@ -124,6 +138,13 @@ const translations = {
     // Main System Layout
     dashboard: 'Visión General', machines: 'Máquinas', reports: 'Reportes', alerts: 'Alertas', settings: 'Ajustes',
     search: 'Buscar en sistema...', logout: 'Salir',
+
+    // AI Assistant Chat
+    assistant_title: 'Asistente FactoryPulse', assistant_subtitle: 'Pregunta sobre la OEE y las paradas de las máquinas',
+    assistant_placeholder: 'Pregunta algo, ej: ¿Cuál es la OEE de DB-01 hoy?',
+    assistant_welcome: '¡Hola! Puedo responder preguntas sobre la OEE y las paradas de tus máquinas. ¿Qué te gustaría saber?',
+    assistant_thinking: 'Consultando los datos de la planta...',
+    assistant_error: 'No pude comunicarme con el asistente ahora. Intenta de nuevo en unos instantes.',
     machine_list: 'Planta de Producción', machine_desc: 'Monitoreo en tiempo real de las líneas.',
     energy: 'Energía', availability: 'Disponibilidad', performance: 'Rendimiento', quality: 'Calidad',
     id: 'ID', unit_energy: 'Corriente (A)',

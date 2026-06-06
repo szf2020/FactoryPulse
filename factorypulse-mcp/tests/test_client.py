@@ -4,21 +4,10 @@ import httpx
 import pytest
 
 from factorypulse_mcp.client import FactoryPulseClient
-from factorypulse_mcp.config import Settings
-
-
-def _settings(token="service-token"):
-    return Settings(
-        api_base_url="http://testserver/api",
-        token=token,
-        transport="stdio",
-        host="127.0.0.1",
-        port=8000,
-    )
 
 
 def _client_with(handler, token="service-token"):
-    return FactoryPulseClient(_settings(token), transport=httpx.MockTransport(handler))
+    return FactoryPulseClient("http://testserver/api", token, transport=httpx.MockTransport(handler))
 
 
 def test_attaches_bearer_token_from_settings():

@@ -19,7 +19,7 @@ from .client import FactoryPulseClient
 from .config import load_settings
 
 settings = load_settings()
-client = FactoryPulseClient(settings)
+client = FactoryPulseClient(settings.api_base_url, settings.token)
 
 mcp = FastMCP("FactoryPulse", host=settings.host, port=settings.port)
 

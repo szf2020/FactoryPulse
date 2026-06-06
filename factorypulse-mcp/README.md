@@ -52,9 +52,14 @@ cp .env.example .env
 cd factorypulse-mcp
 python -m venv venv
 ./venv/Scripts/activate      # Windows — use `source venv/bin/activate` on Linux/macOS
-pip install -r requirements.txt
+pip install -e ".[dev]"
 cp .env.example .env         # then edit FACTORYPULSE_TOKEN
 ```
+
+The package is installed in editable mode (`pyproject.toml`) so it can also be
+depended on by other local services — see `factorypulse-assistant`, which
+reuses `factorypulse_mcp.client.FactoryPulseClient` directly instead of
+duplicating the FactoryPulse API integration.
 
 ## Inspecting it interactively (MCP Inspector)
 

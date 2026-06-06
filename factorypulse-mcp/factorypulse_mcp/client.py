@@ -12,8 +12,6 @@ from typing import Any
 
 import httpx
 
-from .config import Settings
-
 
 class FactoryPulseClient:
     """Authenticated client for the FactoryPulse REST API (read-only usage).
@@ -21,15 +19,21 @@ class FactoryPulseClient:
     Authentication follows the project's existing scheme: DRF + SimpleJWT,
     i.e. an `Authorization: Bearer <access_token>` header carrying the
     long-lived token issued by `python manage.py create_service_token`.
+
+    Takes the bare `api_base_url`/`token` values rather than a config object —
+    this is the FactoryPulse API integration boundary, and keeping its
+    interface to exactly what it needs (Interface Segregation) is what lets
+    other services (e.g. `factorypulse-assistant`) depend on it directly
+    without pulling in MCP-specific settings such as transport/host/port.
     """
 
-    def __init__(self, settings: Settings, transport: httpx.AsyncBaseTransport | None = None):
+    def __init__(self, api_base_url: str, token: str | None = None, transport: httpx.AsyncBaseTransport | None = None):
         headers = {"Accept": "application/json"}
-        if settings.token:
-            headers["Authorization"] = f"Bearer {settings.token}"
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
 
         self._client = httpx.AsyncClient(
-            base_url=f"{settings.api_base_url}/",
+            base_url=f"{api_base_url}/",
             headers=headers,
             timeout=10.0,
             transport=transport,
