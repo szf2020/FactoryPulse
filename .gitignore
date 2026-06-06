@@ -1,0 +1,5 @@
+# Local working notes / assistant config — not part of the portfolio history
+CLAUDE.md
+
+# Environment files (root-level, used by docker-compose)
+.env
