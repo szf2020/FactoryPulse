@@ -57,7 +57,12 @@ A centralized catalog of all provisioned industrial assets (Robotic Arms, CNC Ce
 
 ![Machines List](assets/machines-list.png)
 
-### 5. Secure Authentication
+### 5. AI Assistant Chat
+A conversational layer on top of the analytics API. Operators can ask plain-language questions about machine OEE and downtime — *"Which machine has the worst OEE right now and why?"* — and get grounded, tool-backed answers in real time.
+
+![Assistant Chat](assets/assistant-chat.png)
+
+### 6. Secure Authentication
 Enterprise-grade login interface utilizing JWT (JSON Web Tokens) for secure, stateless session management.
 
 ![Login Screen](assets/login-screen.png)
