@@ -9,7 +9,15 @@ __pycache__/
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
-media
+media/*
+# Seed/demo machine photos referenced by seed_data.py ship with the project
+# so a fresh clone shows real images instead of "No Image" placeholders —
+# everything else uploaded under media/ stays untracked.
+!media/machines/
+media/machines/*
+!media/machines/dobradeira.png
+!media/machines/cnc.png
+!media/machines/robo.png
 
 # If your build process includes running collectstatic, then you probably don't need or want to include staticfiles/
 # in your Git repository. Update and uncomment the following line accordingly.

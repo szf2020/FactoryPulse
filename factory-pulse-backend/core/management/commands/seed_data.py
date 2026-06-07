@@ -61,7 +61,7 @@ class Command(BaseCommand):
             device_id="DB-01",
             machine_type="Press",
             description="High-tonnage press for sheet metal forming.",
-            image="machines/dobradeira.jpg", # Ensure this file exists in /media/machines/
+            image="machines/dobradeira.png", # Ensure this file exists in /media/machines/
             ideal_cycle_time=15.0
         )
 
@@ -71,7 +71,7 @@ class Command(BaseCommand):
             device_id="RB-02",
             machine_type="Automation",
             description="6-axis collaborative robotic arm for MIG/MAG welding.",
-            image="machines/robo.jpg",
+            image="machines/robo.png",
             ideal_cycle_time=8.0
         )
 
@@ -81,7 +81,7 @@ class Command(BaseCommand):
             device_id="CNC-03",
             machine_type="CNC",
             description="High precision 3-axis vertical machining center.",
-            image="machines/cnc.jpg", 
+            image="machines/cnc.png", 
             ideal_cycle_time=12.0
         )
 
