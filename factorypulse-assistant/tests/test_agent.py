@@ -1,48 +1,70 @@
 """
-Exercises FactoryPulseAgent's tool-use loop end to end against fakes for both
-collaborators (the Anthropic client and the tool dispatcher) — no network, no
-API key and no FactoryPulse instance needed.
+Exercises FactoryPulseAgent's tool-calling loop end to end against fakes for
+both collaborators (the Gemini client and the tool dispatcher) — no network,
+no API key and no FactoryPulse instance needed.
+
+Fake "model responses" are built from the real `google.genai.types` objects
+(Content, Part, Candidate, GenerateContentResponse) rather than hand-rolled
+stand-ins, so a mismatch between our code and the SDK's actual shapes — e.g.
+how function calls/results are matched and nested — surfaces here too.
 """
 import asyncio
-from dataclasses import dataclass
+
+from google.genai import types
 
 from factorypulse_assistant.agent import MAX_AGENT_STEPS, FactoryPulseAgent
 from factorypulse_assistant.tools import UnknownToolError
 
 
-@dataclass
-class TextBlock:
-    text: str
-    type: str = "text"
+def _text_part(text):
+    return types.Part.from_text(text=text)
 
 
-@dataclass
-class ToolUseBlock:
-    id: str
-    name: str
-    input: dict
-    type: str = "tool_use"
+def _call_part(name, **args):
+    return types.Part.from_function_call(name=name, args=args)
 
 
-@dataclass
-class FakeResponse:
-    content: list
-    stop_reason: str
+def _model_response(*parts):
+    return types.GenerateContentResponse(
+        candidates=[
+            types.Candidate(
+                content=types.Content(role="model", parts=list(parts)),
+                finish_reason=types.FinishReason.STOP,
+            )
+        ]
+    )
 
 
-class FakeMessages:
+def _empty_response():
+    """Mimics the (real, observed) Gemini reply that carries no content parts."""
+    return types.GenerateContentResponse(
+        candidates=[
+            types.Candidate(
+                content=types.Content(role="model", parts=None),
+                finish_reason=types.FinishReason.STOP,
+            )
+        ]
+    )
+
+
+class FakeAsyncModels:
     def __init__(self, responses):
         self._responses = list(responses)
         self.requests = []
 
-    async def create(self, **kwargs):
+    async def generate_content(self, **kwargs):
         self.requests.append(kwargs)
         return self._responses.pop(0)
 
 
-class FakeAnthropic:
+class FakeAio:
     def __init__(self, responses):
-        self.messages = FakeMessages(responses)
+        self.models = FakeAsyncModels(responses)
+
+
+class FakeGenAIClient:
+    def __init__(self, responses):
+        self.aio = FakeAio(responses)
 
 
 class FakeDispatcher:
@@ -58,12 +80,13 @@ class FakeDispatcher:
         return self._result
 
 
-def _agent(responses, dispatcher=None, model="claude-sonnet-4-6"):
-    return FactoryPulseAgent(FakeAnthropic(responses), dispatcher or FakeDispatcher(), model)
+def _agent(responses, dispatcher=None, model="gemini-2.5-flash"):
+    client = FakeGenAIClient(responses)
+    return client, FactoryPulseAgent(client, dispatcher or FakeDispatcher(), model)
 
 
 def test_ask_returns_text_when_model_answers_without_tools():
-    agent = _agent([FakeResponse(content=[TextBlock("DB-01 is running fine.")], stop_reason="end_turn")])
+    _, agent = _agent([_model_response(_text_part("DB-01 is running fine."))])
 
     answer = asyncio.run(agent.ask("How is DB-01 doing?"))
 
@@ -71,26 +94,25 @@ def test_ask_returns_text_when_model_answers_without_tools():
 
 
 def test_ask_sends_question_model_and_tool_catalogue(monkeypatch):
-    anthropic = FakeAnthropic([FakeResponse(content=[TextBlock("ok")], stop_reason="end_turn")])
-    agent = FactoryPulseAgent(anthropic, FakeDispatcher(), model="claude-haiku-4-5")
+    client, agent = _agent([_model_response(_text_part("ok"))], model="gemini-2.5-pro")
 
     asyncio.run(agent.ask("ping"))
 
-    request = anthropic.messages.requests[0]
-    assert request["model"] == "claude-haiku-4-5"
-    assert request["messages"] == [{"role": "user", "content": "ping"}]
-    assert {tool["name"] for tool in request["tools"]} >= {"get_oee", "list_machines"}
-    assert "FactoryPulse" in request["system"]
+    request = client.aio.models.requests[0]
+    assert request["model"] == "gemini-2.5-pro"
+    assert request["contents"] == [types.Content(role="user", parts=[types.Part.from_text(text="ping")])]
+    [tool] = request["config"].tools
+    assert {decl.name for decl in tool.function_declarations} >= {"get_oee", "list_machines"}
+    assert "FactoryPulse" in request["config"].system_instruction
 
 
 def test_ask_executes_requested_tool_and_returns_final_answer():
-    tool_use = ToolUseBlock(id="toolu_1", name="get_oee", input={"machine_id": "DB-01", "period": "7d"})
     responses = [
-        FakeResponse(content=[tool_use], stop_reason="tool_use"),
-        FakeResponse(content=[TextBlock("DB-01's OEE over 7 days is 80%.")], stop_reason="end_turn"),
+        _model_response(_call_part("get_oee", machine_id="DB-01", period="7d")),
+        _model_response(_text_part("DB-01's OEE over 7 days is 80%.")),
     ]
     dispatcher = FakeDispatcher(result={"oee": {"global": 80.0}})
-    agent = _agent(responses, dispatcher)
+    _, agent = _agent(responses, dispatcher)
 
     answer = asyncio.run(agent.ask("What's DB-01's OEE this week?"))
 
@@ -99,71 +121,73 @@ def test_ask_executes_requested_tool_and_returns_final_answer():
 
 
 def test_ask_feeds_tool_result_back_to_the_model():
-    tool_use = ToolUseBlock(id="toolu_1", name="get_oee", input={"machine_id": "DB-01"})
+    call_part = _call_part("get_oee", machine_id="DB-01")
     responses = [
-        FakeResponse(content=[tool_use], stop_reason="tool_use"),
-        FakeResponse(content=[TextBlock("done")], stop_reason="end_turn"),
+        _model_response(call_part),
+        _model_response(_text_part("done")),
     ]
     dispatcher = FakeDispatcher(result={"oee": {"global": 80.0}})
-    anthropic = FakeAnthropic(responses)
-    agent = FactoryPulseAgent(anthropic, dispatcher, "claude-sonnet-4-6")
+    client, agent = _agent(responses, dispatcher)
 
     asyncio.run(agent.ask("What's DB-01's OEE?"))
 
-    second_request = anthropic.messages.requests[1]
-    assert second_request["messages"][1] == {"role": "assistant", "content": [tool_use]}
-    tool_result_message = second_request["messages"][2]
-    assert tool_result_message["role"] == "user"
-    [tool_result] = tool_result_message["content"]
-    assert tool_result == {
-        "type": "tool_result",
-        "tool_use_id": "toolu_1",
-        "content": '{"oee": {"global": 80.0}}',
-    }
+    second_request = client.aio.models.requests[1]
+    assert second_request["contents"][1] == types.Content(role="model", parts=[call_part])
+
+    feedback = second_request["contents"][2]
+    assert feedback.role == "user"
+    assert feedback.parts == [
+        types.Part.from_function_response(
+            name="get_oee", response={"result": {"oee": {"global": 80.0}}}
+        )
+    ]
 
 
-def test_ask_reports_unknown_tool_as_a_tool_error():
-    tool_use = ToolUseBlock(id="toolu_1", name="delete_machine", input={})
+def test_ask_reports_unknown_tool_as_a_function_error():
+    call_part = _call_part("delete_machine")
     responses = [
-        FakeResponse(content=[tool_use], stop_reason="tool_use"),
-        FakeResponse(content=[TextBlock("I can't do that.")], stop_reason="end_turn"),
+        _model_response(call_part),
+        _model_response(_text_part("I can't do that.")),
     ]
     dispatcher = FakeDispatcher(error=UnknownToolError("delete_machine"))
-    anthropic = FakeAnthropic(responses)
-    agent = FactoryPulseAgent(anthropic, dispatcher, "claude-sonnet-4-6")
+    client, agent = _agent(responses, dispatcher)
 
     asyncio.run(agent.ask("Delete DB-01"))
 
-    [tool_result] = anthropic.messages.requests[1]["messages"][2]["content"]
-    assert tool_result["is_error"] is True
-    assert tool_result["content"] == "Unknown tool: delete_machine"
+    [feedback_part] = client.aio.models.requests[1]["contents"][2].parts
+    assert feedback_part.function_response.response == {"error": "Unknown tool: delete_machine"}
 
 
-def test_ask_reports_tool_failures_as_a_tool_error_instead_of_raising():
-    tool_use = ToolUseBlock(id="toolu_1", name="get_oee", input={"machine_id": "UNKNOWN"})
+def test_ask_reports_tool_failures_as_a_function_error_instead_of_raising():
+    call_part = _call_part("get_oee", machine_id="UNKNOWN")
     responses = [
-        FakeResponse(content=[tool_use], stop_reason="tool_use"),
-        FakeResponse(content=[TextBlock("That machine doesn't seem to exist.")], stop_reason="end_turn"),
+        _model_response(call_part),
+        _model_response(_text_part("That machine doesn't seem to exist.")),
     ]
     dispatcher = FakeDispatcher(error=RuntimeError("404 Not Found"))
-    anthropic = FakeAnthropic(responses)
-    agent = FactoryPulseAgent(anthropic, dispatcher, "claude-sonnet-4-6")
+    client, agent = _agent(responses, dispatcher)
 
     answer = asyncio.run(agent.ask("What's UNKNOWN's OEE?"))
 
     assert answer == "That machine doesn't seem to exist."
-    [tool_result] = anthropic.messages.requests[1]["messages"][2]["content"]
-    assert tool_result["is_error"] is True
-    assert "404 Not Found" in tool_result["content"]
+    [feedback_part] = client.aio.models.requests[1]["contents"][2].parts
+    assert "404 Not Found" in feedback_part.function_response.response["error"]
+
+
+def test_ask_returns_a_friendly_message_when_the_model_sends_back_no_parts():
+    _, agent = _agent([_empty_response()])
+
+    answer = asyncio.run(agent.ask("Qual o OEE da DB-01?"))
+
+    assert "try asking again" in answer.lower()
 
 
 def test_ask_stops_after_max_steps_instead_of_looping_forever():
-    tool_use = ToolUseBlock(id="toolu_1", name="list_machines", input={})
-    responses = [FakeResponse(content=[tool_use], stop_reason="tool_use") for _ in range(MAX_AGENT_STEPS + 2)]
-    anthropic = FakeAnthropic(responses)
-    agent = FactoryPulseAgent(anthropic, FakeDispatcher(result=[]), "claude-sonnet-4-6")
+    responses = [_model_response(_call_part("list_machines")) for _ in range(MAX_AGENT_STEPS + 2)]
+    dispatcher = FakeDispatcher(result=[])
+    client, agent = _agent(responses, dispatcher)
 
     answer = asyncio.run(agent.ask("Tell me everything about every machine forever"))
 
     assert "couldn't" in answer.lower() or "wasn't able" in answer.lower()
-    assert len(anthropic.messages.requests) == MAX_AGENT_STEPS
+    assert len(client.aio.models.requests) == MAX_AGENT_STEPS

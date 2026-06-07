@@ -57,10 +57,12 @@ const translations = {
     
     // Database Data Mapping (Dynamic Content)
     'ONLINE': 'ONLINE', 'OFFLINE': 'OFFLINE', 'OPERANDO': 'OPERANDO', 'PARADA': 'PARADA',
-    'Prensa': 'Prensa', 'Automação': 'Automação', 'CNC': 'CNC', 'Genérica': 'Genérica',
-    'Prensa de alta tonelagem para conformação de chapas metálicas.': 'Prensa de alta tonelagem para conformação de chapas metálicas.',
-    'Braço robótico colaborativo de 6 eixos para soldagem MIG/MAG.': 'Braço robótico colaborativo de 6 eixos para soldagem MIG/MAG.',
-    'Centro de usinagem vertical 3 eixos de alta precisão.': 'Centro de usinagem vertical 3 eixos de alta precisão.'
+    // Keys are the literal strings stored in the database (seed_data.py uses
+    // English) — t() looks up the raw API value, so the key must match it.
+    'Press': 'Prensa', 'Automation': 'Automação', 'CNC': 'CNC', 'Generic': 'Genérica',
+    'High-tonnage press for sheet metal forming.': 'Prensa de alta tonelagem para conformação de chapas metálicas.',
+    '6-axis collaborative robotic arm for MIG/MAG welding.': 'Braço robótico colaborativo de 6 eixos para soldagem MIG/MAG.',
+    'High precision 3-axis vertical machining center.': 'Centro de usinagem vertical de 3 eixos de alta precisão.'
   },
   en: {
     // General UI
@@ -111,10 +113,12 @@ const translations = {
     
     // Database Data Mapping (Dynamic Content)
     'ONLINE': 'ONLINE', 'OFFLINE': 'OFFLINE', 'OPERANDO': 'OPERATING', 'PARADA': 'STOPPED',
-    'Prensa': 'Press', 'Automação': 'Automation', 'CNC': 'CNC', 'Genérica': 'Genérica',
-    'Prensa de alta tonelagem para conformação de chapas metálicas.': 'High tonnage press for sheet metal forming.',
-    'Braço robótico colaborativo de 6 eixos para soldagem MIG/MAG.': '6-axis collaborative robotic arm for MIG/MAG welding.',
-    'Centro de usinagem vertical 3 eixos de alta precisão.': 'High precision 3-axis vertical machining center.'
+    // Keys are the literal strings stored in the database (seed_data.py uses
+    // English) — t() looks up the raw API value, so the key must match it.
+    'Press': 'Press', 'Automation': 'Automation', 'CNC': 'CNC', 'Generic': 'Generic',
+    'High-tonnage press for sheet metal forming.': 'High-tonnage press for sheet metal forming.',
+    '6-axis collaborative robotic arm for MIG/MAG welding.': '6-axis collaborative robotic arm for MIG/MAG welding.',
+    'High precision 3-axis vertical machining center.': 'High precision 3-axis vertical machining center.'
   },
   es: {
     // General UI
@@ -165,10 +169,12 @@ const translations = {
 
     // Database Data Mapping (Dynamic Content)
     'ONLINE': 'EN LÍNEA', 'OFFLINE': 'DESCONECTADO', 'OPERANDO': 'OPERANDO', 'PARADA': 'DETENIDA',
-    'Prensa': 'Prensa', 'Automação': 'Automatización', 'CNC': 'CNC', 'Genérica': 'Genérica',
-    'Prensa de alta tonelagem para conformação de chapas metálicas.': 'Prensa de alto tonelaje para conformado de chapa.',
-    'Braço robótico colaborativo de 6 eixos para soldagem MIG/MAG.': 'Brazo robótico colaborativo de 6 ejes para soldadura MIG/MAG.',
-    'Centro de usinagem vertical 3 eixos de alta precisão.': 'Centro de mecanizado vertical de 3 ejes de alta precisión.'
+    // Keys are the literal strings stored in the database (seed_data.py uses
+    // English) — t() looks up the raw API value, so the key must match it.
+    'Press': 'Prensa', 'Automation': 'Automatización', 'CNC': 'CNC', 'Generic': 'Genérica',
+    'High-tonnage press for sheet metal forming.': 'Prensa de alto tonelaje para conformado de chapa.',
+    '6-axis collaborative robotic arm for MIG/MAG welding.': 'Brazo robótico colaborativo de 6 ejes para soldadura MIG/MAG.',
+    'High precision 3-axis vertical machining center.': 'Centro de mecanizado vertical de 3 ejes de alta precisión.'
   }
 };
 

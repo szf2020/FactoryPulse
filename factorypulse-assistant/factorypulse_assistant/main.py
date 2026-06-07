@@ -12,9 +12,9 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
-from anthropic import AsyncAnthropic
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from google import genai
 from pydantic import BaseModel, Field
 
 from factorypulse_mcp.client import FactoryPulseClient
@@ -26,9 +26,14 @@ from .tools import ToolDispatcher
 settings = load_settings()
 factorypulse_client = FactoryPulseClient(settings.factorypulse_api, settings.factorypulse_token)
 agent = FactoryPulseAgent(
-    anthropic=AsyncAnthropic(api_key=settings.anthropic_api_key),
+    # Unlike AsyncAnthropic, genai.Client validates api_key at construction
+    # time and raises if it's empty — substitute a placeholder so the app
+    # (and the test suite, which overrides get_agent before issuing requests)
+    # can still start without one configured; a missing/invalid key then
+    # surfaces as a normal auth error from Gemini on the first /ask call.
+    client=genai.Client(api_key=settings.gemini_api_key or "unset"),
     dispatcher=ToolDispatcher(factorypulse_client),
-    model=settings.anthropic_model,
+    model=settings.gemini_model,
 )
 
 

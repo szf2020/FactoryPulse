@@ -1,6 +1,6 @@
 """
 Exercises the HTTP surface of the assistant: POST /ask delegates to the agent
-and shapes its answer as JSON. The real agent (and its Anthropic/FactoryPulse
+and shapes its answer as JSON. The real agent (and its Gemini/FactoryPulse
 collaborators) is swapped for a fake via FastAPI's dependency override — no
 network, API key or live FactoryPulse instance needed.
 """

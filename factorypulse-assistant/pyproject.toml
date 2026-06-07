@@ -1,13 +1,13 @@
 [project]
 name = "factorypulse-assistant"
 version = "0.1.0"
-description = "HTTP agent service answering FactoryPulse shop-floor questions via Claude tool use"
+description = "HTTP agent service answering FactoryPulse shop-floor questions via Gemini function calling"
 requires-python = ">=3.12"
 dependencies = [
     "factorypulse-mcp",
     "fastapi>=0.115",
     "uvicorn[standard]>=0.30",
-    "anthropic>=0.107",
+    "google-genai>=1.75",
     "pydantic>=2.7",
     "python-dotenv>=1.0",
 ]

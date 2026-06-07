@@ -3,15 +3,19 @@ Tool catalogue and dispatcher for the assistant's agentic loop.
 
 `TOOL_DEFINITIONS` describes the same FactoryPulse analytics operations
 exposed as MCP tools in `factorypulse_mcp.server` — list machines, OEE,
-downtime and the downtime ranking — but in the JSON-schema shape the Claude
-API's tool-use feature expects. `ToolDispatcher` then executes a tool call by
-name through `FactoryPulseClient`, the very same read-only API integration the
-MCP server uses, so both delivery mechanisms (MCP and this HTTP agent) share
-one FactoryPulse domain client instead of duplicating it.
+downtime and the downtime ranking — but as `google.genai.types.FunctionDeclaration`
+objects, the shape Gemini's function-calling feature expects (JSON Schema
+passed straight through via `parameters_json_schema`). `ToolDispatcher` then
+executes a tool call by name through `FactoryPulseClient`, the very same
+read-only API integration the MCP server uses, so both delivery mechanisms
+(MCP and this HTTP agent) share one FactoryPulse domain client instead of
+duplicating it.
 """
 from __future__ import annotations
 
 from typing import Any
+
+from google.genai import types
 
 from factorypulse_mcp.client import FactoryPulseClient
 
@@ -28,27 +32,30 @@ MACHINE_ID_PROPERTY = {
     "description": "The machine's device_id, e.g. \"DB-01\" (see list_machines).",
 }
 
-TOOL_DEFINITIONS: list[dict[str, Any]] = [
-    {
-        "name": "list_machines",
-        "description": (
+TOOL_DEFINITIONS: list[types.FunctionDeclaration] = [
+    types.FunctionDeclaration(
+        name="list_machines",
+        description=(
             "List every machine registered in FactoryPulse: device id, name, "
-            "type, ideal cycle time and its current OEE snapshot. Call this "
-            "first to discover valid machine_id values for the other tools."
+            "type and ideal cycle time. Call this first to discover valid "
+            "machine_id values for the other tools — but note its \"oee\" "
+            "field is just a cached snapshot that is often null; always call "
+            "get_oee with a machine_id to get the real, period-based OEE "
+            "figures, never report the snapshot (or its absence) as the answer."
         ),
-        "input_schema": {
+        parameters_json_schema={
             "type": "object",
             "properties": {},
         },
-    },
-    {
-        "name": "get_oee",
-        "description": (
+    ),
+    types.FunctionDeclaration(
+        name="get_oee",
+        description=(
             "Get the OEE breakdown for one machine over a time window: "
             "Availability, Performance, Quality and the global OEE score "
             "(percentages, 0-100)."
         ),
-        "input_schema": {
+        parameters_json_schema={
             "type": "object",
             "properties": {
                 "machine_id": MACHINE_ID_PROPERTY,
@@ -56,16 +63,16 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
             },
             "required": ["machine_id"],
         },
-    },
-    {
-        "name": "get_downtime",
-        "description": (
+    ),
+    types.FunctionDeclaration(
+        name="get_downtime",
+        description=(
             "List stoppages recorded for one machine over a time window. Each "
             "entry has a start timestamp, an end timestamp (or null with "
             "\"ongoing\": true for a stoppage still in progress) and its "
             "duration in seconds, plus totals for the whole period."
         ),
-        "input_schema": {
+        parameters_json_schema={
             "type": "object",
             "properties": {
                 "machine_id": MACHINE_ID_PROPERTY,
@@ -73,15 +80,15 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
             },
             "required": ["machine_id"],
         },
-    },
-    {
-        "name": "top_downtime",
-        "description": (
+    ),
+    types.FunctionDeclaration(
+        name="top_downtime",
+        description=(
             "Rank machines by total downtime within a time window — the "
             "fastest way to answer \"which machine is losing the most "
             "production time right now?\"."
         ),
-        "input_schema": {
+        parameters_json_schema={
             "type": "object",
             "properties": {
                 "period": PERIOD_PROPERTY,
@@ -91,7 +98,7 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
                 },
             },
         },
-    },
+    ),
 ]
 
 

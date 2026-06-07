@@ -42,22 +42,22 @@ def _client_of(dispatcher):
 
 
 def test_tool_definitions_expose_name_description_and_schema():
-    assert {tool["name"] for tool in TOOL_DEFINITIONS} == {
+    assert {tool.name for tool in TOOL_DEFINITIONS} == {
         "list_machines",
         "get_oee",
         "get_downtime",
         "top_downtime",
     }
     for tool in TOOL_DEFINITIONS:
-        assert tool["description"], f"{tool['name']} is missing a description"
-        assert tool["input_schema"]["type"] == "object"
+        assert tool.description, f"{tool.name} is missing a description"
+        assert tool.parameters_json_schema["type"] == "object"
 
 
 def test_get_oee_and_get_downtime_require_machine_id():
-    by_name = {tool["name"]: tool for tool in TOOL_DEFINITIONS}
+    by_name = {tool.name: tool for tool in TOOL_DEFINITIONS}
 
-    assert by_name["get_oee"]["input_schema"]["required"] == ["machine_id"]
-    assert by_name["get_downtime"]["input_schema"]["required"] == ["machine_id"]
+    assert by_name["get_oee"].parameters_json_schema["required"] == ["machine_id"]
+    assert by_name["get_downtime"].parameters_json_schema["required"] == ["machine_id"]
 
 
 def test_dispatch_list_machines(dispatcher):
