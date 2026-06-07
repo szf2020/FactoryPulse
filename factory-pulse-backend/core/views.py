@@ -6,12 +6,14 @@ from django.utils import timezone
 
 from rest_framework import generics, status
 from rest_framework.decorators import api_view, permission_classes
+from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from celery.result import AsyncResult
 
+from .analytics import calculate_oee, resolve_period, summarize_downtime
 from .tasks import sum_sanity_check, generate_oee_report
 from .models import Machine, ProductionEvent, SensorReading
 from .serializers import (
@@ -58,56 +60,9 @@ class MachineDetailView(APIView):
         now = timezone.now()
         start_time = now - timedelta(hours=24)
 
-        events = machine.events.filter(timestamp__gte=start_time)
         readings = machine.readings.filter(
             timestamp__gte=start_time
         ).order_by('timestamp')
-
-        # -----------------------------
-        # 1. AVAILABILITY
-        # -----------------------------
-        total_seconds = (now - start_time).total_seconds()
-
-        # MVP downtime logic:
-        # Each ERROR_START represents ~5 minutes of downtime
-        error_starts = events.filter(event_type='ERROR_START')
-        downtime_seconds = error_starts.count() * 300
-
-        run_time = max(0, total_seconds - downtime_seconds)
-        availability = (
-            (run_time / total_seconds) * 100
-            if total_seconds > 0 else 0
-        )
-
-        # -----------------------------
-        # 2. PERFORMANCE
-        # -----------------------------
-        total_produced = events.filter(event_type='CYCLE').count()
-
-        if run_time > 0 and machine.ideal_cycle_time > 0:
-            theoretical_max = run_time / machine.ideal_cycle_time
-            performance = (
-                (total_produced / theoretical_max) * 100
-                if theoretical_max > 0 else 0
-            )
-        else:
-            performance = 0
-
-        # -----------------------------
-        # 3. QUALITY
-        # -----------------------------
-        total_scraps = events.filter(event_type='SCRAP').count()
-        good_parts = max(0, total_produced - total_scraps)
-
-        quality = (
-            (good_parts / total_produced) * 100
-            if total_produced > 0 else 100
-        )
-
-        # -----------------------------
-        # GLOBAL OEE
-        # -----------------------------
-        oee_score = (availability * performance * quality) / 10000
 
         data = {
             "id": machine.id,
@@ -116,12 +71,7 @@ class MachineDetailView(APIView):
             "machine_type": machine.machine_type,
             "description": machine.description,
             "image": machine.image.url if machine.image else None,
-            "oee": {
-                "availability": round(availability, 1),
-                "performance": round(performance, 1),
-                "quality": round(quality, 1),
-                "global": round(oee_score, 1),
-            },
+            "oee": calculate_oee(machine, start_time, now),
             # Last 50 points only (payload optimization)
             "energy_history": SensorReadingSerializer(
                 readings.reverse()[:50][::-1],
@@ -130,6 +80,88 @@ class MachineDetailView(APIView):
         }
 
         return Response(data)
+
+
+class MachineOeeView(APIView):
+    """
+    Read-only API Endpoint for OEE metrics of a single machine over a
+    configurable period. Reuses the same calculation as MachineDetailView,
+    parameterized by a 'period' query string (e.g. "30m", "24h", "7d").
+    Defaults to "24h" when no period is provided.
+    """
+
+    def get(self, request, device_id):
+        machine = get_object_or_404(Machine, device_id=device_id)
+        period = request.query_params.get('period', '24h')
+        start, end = resolve_period(period)
+
+        return Response({
+            "machine": machine.device_id,
+            "name": machine.name,
+            "period": period,
+            "start": start,
+            "end": end,
+            "oee": calculate_oee(machine, start, end),
+        })
+
+
+class MachineDowntimeView(APIView):
+    """
+    Read-only API Endpoint listing stoppages for a single machine over a
+    configurable period. Pairs ERROR_START/ERROR_END events into discrete
+    intervals with measured durations (an open stoppage is reported as
+    'ongoing'). Query param: 'period' (e.g. "30m", "24h", "7d"), default "24h".
+    """
+
+    def get(self, request, device_id):
+        machine = get_object_or_404(Machine, device_id=device_id)
+        period = request.query_params.get('period', '24h')
+        start, end = resolve_period(period)
+
+        return Response({
+            "machine": machine.device_id,
+            "name": machine.name,
+            "period": period,
+            "start": start,
+            "end": end,
+            **summarize_downtime(machine, start, end),
+        })
+
+
+class TopDowntimeView(APIView):
+    """
+    Read-only API Endpoint ranking machines by total downtime within a period.
+    Query params: 'period' (default "24h") and 'limit' (default 5, max 50).
+    """
+
+    def get(self, request):
+        period = request.query_params.get('period', '24h')
+        start, end = resolve_period(period)
+
+        try:
+            limit = int(request.query_params.get('limit', 5))
+        except ValueError:
+            raise ValidationError("'limit' must be an integer.")
+        limit = max(1, min(limit, 50))
+
+        ranking = []
+        for machine in Machine.objects.all():
+            summary = summarize_downtime(machine, start, end)
+            ranking.append({
+                "machine": machine.device_id,
+                "name": machine.name,
+                "stoppage_count": summary["stoppage_count"],
+                "total_downtime_seconds": summary["total_downtime_seconds"],
+            })
+
+        ranking.sort(key=lambda item: item["total_downtime_seconds"], reverse=True)
+
+        return Response({
+            "period": period,
+            "start": start,
+            "end": end,
+            "ranking": ranking[:limit],
+        })
 
 @api_view(['POST'])
 @permission_classes([AllowAny])

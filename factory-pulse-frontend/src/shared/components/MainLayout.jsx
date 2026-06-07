@@ -1,9 +1,10 @@
 import React from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, Activity, Bell, Search, Monitor, FileText, LogOut, AlertTriangle } from 'lucide-react';
-import { useApp } from '../contexts/AppContext'; 
+import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
 import LanguageThemeControl from './LanguageThemeControl';
+import AssistantChat from './AssistantChat';
 
 /**
  * Main Application Layout.
@@ -100,6 +101,9 @@ export default function MainLayout() {
           <Outlet />
         </div>
       </main>
+
+      {/* AI Assistant — floating chat available across every protected page */}
+      <AssistantChat />
     </div>
   );
 }
